@@ -1,17 +1,22 @@
 import { Module } from '@nestjs/common';
-import { KnexModule } from './knex/knex.module';
-import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
-import { AddressModule } from './address/address.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    KnexModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      username: 'postgres',
+      password: 'k7119zamu',
+      database: 'e_commers',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      synchronize: true,
     }),
     UsersModule,
-    AddressModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

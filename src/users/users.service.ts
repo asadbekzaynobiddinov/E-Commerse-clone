@@ -1,149 +1,84 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import * as knex from 'knex';
-import { hashPassword } from 'src/utils/index';
-import { ResponseMessage } from 'src/utils/interfaces';
+import { User } from './entities/user.entity';
+import { hashPassword } from 'src/utils';
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject('KNEX_CONNECTION') private readonly knex: knex.Knex) {}
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+  ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<ResponseMessage> {
-    const userExists: CreateUserDto[] = await this.knex('users')
-      .select('email')
-      .where('email', '=', createUserDto.email);
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const { email } = createUserDto;
 
-    if (userExists.length !== 0) {
-      return {
-        success: false,
-        status: 409,
-        message: 'Email already exists',
-      };
+    const exitingUser = await this.userRepo.find({ where: { email } });
+
+    if (exitingUser.length !== 0) {
+      throw new ConflictException('Email already exists');
     }
 
     createUserDto.password = await hashPassword(createUserDto.password);
-    let result: CreateUserDto[] = await this.knex('users')
-      .insert(createUserDto)
-      .returning('*');
-    result = result.map((user) => {
-      delete user.password;
-      return user;
-    });
-    return {
-      success: true,
-      status: 201,
-      message: result,
-    };
+
+    const newUser = this.userRepo.create(createUserDto);
+    await this.userRepo.save(newUser);
+    delete newUser.password;
+
+    return newUser;
   }
 
-  async findAll(page: number, limit: number): Promise<ResponseMessage> {
-    const offset = (page - 1) * limit;
-    let users: CreateUserDto[] = await this.knex('users')
-      .select('*')
-      .offset(offset)
-      .limit(limit);
+  async findAll(page: number, limit: number): Promise<User[]> {
+    const skip = (page - 1) * limit;
+    let users = await this.userRepo.find({
+      skip,
+      take: limit,
+    });
 
     if (users.length === 0) {
-      return {
-        success: false,
-        status: 404,
-        message: 'Users not found',
-      };
+      throw new NotFoundException('Users not found');
     }
 
     users = users.map((user) => {
       delete user.password;
       return user;
     });
-
-    return {
-      success: true,
-      status: 200,
-      message: users,
-    };
+    return users;
   }
 
-  async findOne(id: string): Promise<ResponseMessage> {
-    let dbResponse = await this.knex('users').select('*').where('id', '=', id);
-    if (dbResponse.length === 0) {
-      return {
-        success: false,
-        status: 404,
-        message: 'User not found',
-      };
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepo.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
-    dbResponse = dbResponse.map((user) => {
-      delete user.password;
-      return user;
-    });
-    return {
-      success: true,
-      status: 200,
-      message: dbResponse,
-    };
+
+    delete user.password;
+    return user;
   }
 
-  async update(
-    id: string,
-    updateUserDto: UpdateUserDto,
-  ): Promise<ResponseMessage> {
-    const userExists: UpdateUserDto[] = await this.knex('users')
-      .select('*')
-      .where('id', '=', id);
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const result = await this.userRepo.update(id, updateUserDto);
 
-    if (userExists.length === 0) {
-      return {
-        success: false,
-        status: 404,
-        message: 'User not found',
-      };
+    if (result.affected === 0) {
+      throw new NotFoundException('User not found');
     }
-
-    let updatedUser: UpdateUserDto[] = await this.knex('users')
-      .update(updateUserDto)
-      .where('id', '=', id)
-      .returning('*');
-
-    updatedUser = updatedUser.map((user) => {
-      delete user.password;
-      return user;
-    });
-
-    return {
-      success: true,
-      status: 200,
-      message: updatedUser,
-    };
+    return 'User updated successfuly';
   }
 
   async remove(id: string) {
-    const userExists: UpdateUserDto[] = await this.knex('users')
-      .select('*')
-      .where('id', '=', id);
+    const result = await this.userRepo.delete(id);
 
-    if (userExists.length === 0) {
-      return {
-        success: false,
-        status: 404,
-        message: 'User not found',
-      };
+    if (result.affected === 0) {
+      throw new NotFoundException('User Not Found');
     }
-
-    let deletedUser: UpdateUserDto[] = await this.knex('users')
-      .delete()
-      .where('id', '=', id)
-      .returning('*');
-
-    deletedUser = deletedUser.map((user) => {
-      delete user.password;
-      return user;
-    });
-
-    return {
-      success: true,
-      status: 200,
-      message: deletedUser,
-    };
+    return 'User deleted successfuly';
   }
 }
