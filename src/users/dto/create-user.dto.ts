@@ -1,40 +1,23 @@
-import {
-  IsString,
-  IsEmail,
-  IsDate,
-  IsOptional,
-  Length,
-  Matches,
-  IsEnum,
-} from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty } from 'class-validator';
 
 export class CreateUserDto {
-  @IsOptional()
   @IsString()
-  id?: string;
-
-  @IsString()
-  @Length(1, 50, { message: 'Name must be between 1 and 50 characters' })
+  @IsNotEmpty()
   name: string;
 
-  @IsEmail({}, { message: 'Invalid email address' })
+  @IsEmail()
+  @IsNotEmpty()
   email: string;
 
   @IsString()
-  @Length(6, 100, { message: 'Password must be at least 6 characters long' })
+  @IsNotEmpty()
   password: string;
 
-  @IsOptional()
-  @IsEnum(['user', 'admin'], { message: 'Role must be either user or admin' })
-  role?: 'user' | 'admin';
-
-  @IsOptional()
-  @IsDate({ message: 'Invalid birth of date' })
-  birth_of_date?: Date;
+  @IsString()
+  @IsNotEmpty()
+  birth_of_date: string;
 
   @IsString()
-  @Matches(/^\+?\d{10,15}$/, {
-    message: 'Phone number must be valid and contain 10-15 digits',
-  })
+  @IsNotEmpty()
   phone_number: string;
 }

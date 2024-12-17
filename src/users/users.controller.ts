@@ -5,65 +5,49 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
-  Res,
   Query,
+  Delete,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Response } from 'express';
-import { ResponseMessage, responseHandler } from 'src/utils/index';
+import { AuthGuard, CustomRequest } from 'src/middlewares/Guards/auth.guard';
 
 @Controller('users')
+@UseGuards(AuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  async create(@Body() createUserDto: CreateUserDto, @Res() res: Response) {
-    const result: ResponseMessage =
-      await this.usersService.create(createUserDto);
-    responseHandler(res, result);
+  create(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto);
   }
 
   @Get()
-  async findAll(
-    @Query() query: { limit: number; page: number },
-    @Res() res: Response,
+  findAll(
+    @Query() query: { page: number; limit: number },
+    @Req() req: CustomRequest,
   ) {
-    const page: number = query.page || 1;
-    const limit: number = query.limit || 10;
-
-    const result: ResponseMessage = await this.usersService.findAll(
-      page,
-      limit,
-    );
-
-    responseHandler(res, result);
+    console.log(req.user);
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    return this.usersService.findAll(page, limit);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Res() res: Response) {
-    const result: ResponseMessage = await this.usersService.findOne(id);
-    responseHandler(res, result);
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-    @Res() res: Response,
-  ) {
-    const result: ResponseMessage = await this.usersService.update(
-      id,
-      updateUserDto,
-    );
-    responseHandler(res, result);
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Res() res: Response) {
-    const result: ResponseMessage = await this.usersService.remove(id);
-    responseHandler(res, result);
+  remove(@Param('id') id: string) {
+    return this.usersService.remove(id);
   }
 }
